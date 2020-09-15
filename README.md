@@ -1,5 +1,5 @@
 # Introduction
-The python code in **python** folder implements the simulations and plots the figures described in the paper ["Deep Completion Autoencoders for Radio Map Estimation"](https://arxiv.org/abs/2005.05964) by Yves Teganya and Daniel Romero.
+The Python code in **python** folder implements the simulations and plots the figures described in the paper ["Deep Completion Autoencoders for Radio Map Estimation"](https://arxiv.org/abs/2005.05964) by Yves Teganya and Daniel Romero.
 
 # Required packages
 
