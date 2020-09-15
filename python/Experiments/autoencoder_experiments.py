@@ -1614,7 +1614,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                 n_filters=filters)
 
             # Train
-            num_maps = 12 # 5000
+            num_maps = 125000
             ve_split_frac = [0.5, 0.5]
             training_generator = InsiteMapGenerator(
                 l_file_num=np.arange(1, 41))
@@ -1627,7 +1627,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                perc_train=0.9,
                                                v_split_frac=ve_split_frac,
                                                n_resamples_per_map=10,
-                                               n_epochs=1)
+                                               n_epochs=100)
 
             # Plot training results: losses and visualize codes if enabled
             # ExperimentSet.plot_histograms_of_codes_and_visualize(
