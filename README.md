@@ -3,7 +3,7 @@ The python code in **python** folder implements the simulations and plots the fi
 
 # Required packages
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the following packages.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the following packages:
 
 ```bash
 tensorflow
