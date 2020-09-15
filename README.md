@@ -1,2 +1,2 @@
-# deep-autoencoders-cartography
-This repository contains the code reproducing the results in the paper "Deep Completion Autoencoders for Radio Map Estimation"
+# Introduction
+This repository contains the code reproducing the results in the paper  The python code in **python** folder implements the simulations and plots the figures described in the paper "Deep Completion Autoencoders for Radio Map Estimation" by Yves Teganya and Daniel Romero.
