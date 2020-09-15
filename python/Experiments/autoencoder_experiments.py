@@ -245,7 +245,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                           exp_num)
 
         # Simulation pararameters
-        n_runs = 500
+        n_runs = 1000
         n_run_estimators = len(estimators_to_sim)
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
 
@@ -325,7 +325,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                 n_filters=filters)
 
             # Train
-            num_maps = 100000
+            num_maps = 125000
             ve_split_frac = [0.5, 0.5]
             training_generator = InsiteMapGenerator(
                 l_file_num=np.arange(1, 41))
@@ -477,7 +477,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             n_filters=filters)
 
         # Pretrain with the Gudmundson data set
-        num_maps_0 = 400000
+        num_maps_0 = 500000
         ve_split_frac_0 = 1
         training_generator_0 = GudmundsonMapGenerator(
             # tx_power=np.tile(np.array([[11, 7], [10, 6]]), (int(np.size(v_central_freq) / 2), 1)), # dBm
@@ -577,7 +577,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                         'the "v_filters" vector'
 
         # Prepare simulation
-        n_runs = 10
+        n_runs = 1000
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
         # run simulation
         RMSE = np.zeros((1, len(v_code_length)))
@@ -590,7 +590,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                 bases_vals=map_generator.m_basis_functions,
                 n_filters=v_filters[ind_code])
             # Train
-            num_maps = 20
+            num_maps = 200000
             ve_split_frac = 1
             history, codes = estimator.train(generator=map_generator,
                                                sampler=sampler,
@@ -600,7 +600,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                perc_train=0.9,
                                                v_split_frac=ve_split_frac,
                                                n_resamples_per_map=1,
-                                               n_epochs=10)
+                                               n_epochs=100)
             sampler.v_sampling_factor = 0.1
             RMSE[0, ind_code] = simulator.simulate(
                 generator=map_generator,
@@ -644,7 +644,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         v_architecture_ids = ['5', '8']
         v_filters = [27, 34]
         code_length = 64
-        num_maps = 4000
+        num_maps = 500000
         ve_split_frac = 1
         v_sampl_factor = [0.05, 0.5]
 
@@ -666,7 +666,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                            perc_train=0.9,
                                            v_split_frac=ve_split_frac,
                                            n_resamples_per_map=1,
-                                           n_epochs=10)
+                                           n_epochs=100)
         estimator_1.str_name = "Fully connected"
 
         # 2. Fully convolutional  autoencoders
@@ -708,7 +708,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         estimators_to_sim = [1, 2]
 
         # Simulation pararameters
-        n_runs = 10
+        n_runs = 1000
         n_run_estimators = len(estimators_to_sim)
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
 
@@ -772,7 +772,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         activ_functions = ['prelu', 'leakyrelu']
 
         # Prepare simulation
-        n_runs = 1
+        n_runs = 1000
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
         # run simulation
         n_layers = np.zeros((1, len(v_architecture_ids)))
@@ -788,7 +788,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                     n_filters=v_filters[ind_arch],
                     activ_func_name=activ_functions[ind_activ_func])
                 # Train
-                num_maps = 20
+                num_maps = 400000
                 ve_split_frac = 1
                 training_sampler = MapSampler(v_sampling_factor=[0.05, 0.3], std_noise=1)
                 history, codes = estimator.train(generator=map_generator,
@@ -799,7 +799,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                  perc_train=0.9,
                                                  v_split_frac=ve_split_frac,
                                                  n_resamples_per_map=1,
-                                                 n_epochs=1)
+                                                 n_epochs=100)
                 if ind_activ_func == 0:
                     encoder = estimator.chosen_model.get_layer('encoder')
                     decoder = estimator.chosen_model.get_layer('decoder')
@@ -853,8 +853,8 @@ class ExperimentSet(gsim.AbstractExperimentSet):
 
         # Estimators
         filters = 27
-        num_maps = 50
-        n_epochs = 5
+        num_maps = 500000
+        n_epochs = 100
         ve_split_frac = 1
         training_sampler = MapSampler(v_sampling_factor=[0.05, 0.2], std_noise=1)
 
@@ -966,7 +966,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         filters = 32
         code_length = 64
         train_autoencoder = True
-        num_maps = 125
+        num_maps = 25000
         ve_split_frac = 1
         if not train_autoencoder:
             estimator_1 = AutoEncoderEstimator(
@@ -992,12 +992,12 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             history, codes = estimator_1.train(generator=map_generator,
                                                sampler=training_sampler,
                                                learning_rate=1e-4,
-                                               n_super_batches=1,
+                                               n_super_batches=10,
                                                n_maps=num_maps,
                                                perc_train=0.96,
                                                v_split_frac=ve_split_frac,
-                                               n_resamples_per_map=1,
-                                               n_epochs=2)
+                                               n_resamples_per_map=5,
+                                               n_epochs=100)
 
             # Plot training results: losses and visualize codes if enabled
             # ExperimentSet.plot_histograms_of_codes_and_visualize(
@@ -1099,7 +1099,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                               file_name='True_and_Estimated_bcoeffs')
 
         # Simulation pararameters
-        n_runs = 1
+        n_runs = 1000
         n_run_estimators = len(estimators_to_sim)
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=True)
 
@@ -1177,7 +1177,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         filters = 32
         code_length = 64
         train_autoencoder = True
-        num_maps = 125
+        num_maps = 25000
         ve_split_frac = 1
         if not train_autoencoder:
             estimator_1 = AutoEncoderEstimator(
@@ -1203,12 +1203,12 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             history, codes = estimator_1.train(generator=map_generator,
                                                sampler=training_sampler,
                                                learning_rate=1e-4,
-                                               n_super_batches=1,
+                                               n_super_batches=10,
                                                n_maps=num_maps,
                                                perc_train=0.96,
                                                v_split_frac=ve_split_frac,
-                                               n_resamples_per_map=1,
-                                               n_epochs=2)
+                                               n_resamples_per_map=5,
+                                               n_epochs=100)
 
             # Plot training results: losses and visualize codes if enabled
             # ExperimentSet.plot_histograms_of_codes_and_visualize(
@@ -1310,7 +1310,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                               file_name='True_and_Estimated_bcoeffs')
 
         # Simulation pararameters
-        n_runs = 1
+        n_runs = 1000
         n_run_estimators = len(estimators_to_sim)
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=True)
 
@@ -1398,7 +1398,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                 n_filters=filters)
 
             # Train
-            num_maps = 250  # 25000
+            num_maps = 25000
             ve_split_frac = [0.5, 0.5]
             training_sampler = MapSampler(v_sampling_factor=[0.05, 0.45])
             training_generator = InsiteMapGenerator(
@@ -1409,12 +1409,12 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             history, codes = estimator.train(generator=training_generator,
                                                sampler=training_sampler,
                                                learning_rate=5e-4,
-                                               n_super_batches=1,  # 10,
+                                               n_super_batches=10,
                                                n_maps=num_maps,
                                                perc_train=0.96,
                                                v_split_frac=ve_split_frac,
                                                n_resamples_per_map=5,
-                                               n_epochs=1)  # 50
+                                               n_epochs=100)
 
             # Plot training results: losses and visualize codes if enabled
             # ExperimentSet.plot_histograms_of_codes_and_visualize(
@@ -1429,7 +1429,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
 
 
             # Simulation pararameters
-            n_runs = 1  # 50
+            n_runs = 1000
 
             simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
 
@@ -1485,7 +1485,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         filters = 27
         code_length = 64
         train_autoencoder = True
-        num_maps = 40
+        num_maps = 500000
         ve_split_frac = 1
         if not train_autoencoder:
             estimator_1 = AutoEncoderEstimator(
@@ -1516,7 +1516,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                perc_train=0.9,
                                                v_split_frac=ve_split_frac,
                                                n_resamples_per_map=1,
-                                               n_epochs=10)
+                                               n_epochs=100)
 
             # Plot training results: losses and visualize codes if enabled
             ExperimentSet.plot_histograms_of_codes_and_visualize(
@@ -1536,7 +1536,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         estimators_to_sim = [1, 2]
 
         # Simulation pararameters
-        n_runs = 10
+        n_runs = 1000
         n_run_estimators = len(estimators_to_sim)
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
 
@@ -1614,7 +1614,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                 n_filters=filters)
 
             # Train
-            num_maps = 100000
+            num_maps = 12 # 5000
             ve_split_frac = [0.5, 0.5]
             training_generator = InsiteMapGenerator(
                 l_file_num=np.arange(1, 41))
@@ -1627,7 +1627,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                perc_train=0.9,
                                                v_split_frac=ve_split_frac,
                                                n_resamples_per_map=10,
-                                               n_epochs=100)
+                                               n_epochs=1)
 
             # Plot training results: losses and visualize codes if enabled
             # ExperimentSet.plot_histograms_of_codes_and_visualize(

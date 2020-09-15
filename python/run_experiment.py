@@ -21,8 +21,6 @@ def initialize():
 initialize()
 ########################################################################
 # Select experiment file:
-#from Experiments.function_interpolation_experiments import ExperimentSet
-#from Experiments.variational_autoencoder_experiments import ExperimentSet
 from Experiments.autoencoder_experiments import ExperimentSet
 
 ########################################################################
