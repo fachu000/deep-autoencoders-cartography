@@ -13,7 +13,6 @@ cvxopt
 matplotlib
 pandas
 joblib
-scikit-dsp-comm
 sklearn
 opencv-python
 ```
