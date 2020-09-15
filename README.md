@@ -17,7 +17,7 @@ sklearn
 opencv-python
 ```
 # Guidelines
-Add the simulation environment for Python with the following command:
+Add the simulation environment for Python with the following git command:
 
 ```git submodule add https://github.com/fachu000/GSim-Python.git ./gsim```
  
