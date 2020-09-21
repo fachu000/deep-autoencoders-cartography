@@ -30,6 +30,8 @@ For experiments that use the Wireless Insite software, please download the data 
 
 One is now all set. For example, to run experiment 1003, one types `run_experiment.py 1003`. To just display the results of the last execution of experiment 1003 (stored in **output/autoencoder_experiments**), one types `run_experiment.py -p 1003`. Note that this way of only plotting executed experiments applies for displaying 1D curves, it does not work for 2D images. The simulation results for experiments that produce 2D images (possibly together with 1D curves) are saved in **output/autoencoder_experiments/savedResults**. 
 
+For any questions related to the code or difficulties to run it, please send me an email at `yves.teganya@uia.no` or `yvesteg@hotmail.com`
+
 # Citation
 If our code is helpful in your resarch or work, please cite our paper.
 ```bash
