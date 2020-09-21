@@ -22,7 +22,7 @@ Add the simulation environment for Python with the following git command:
 ```git submodule add https://github.com/fachu000/GSim-Python.git ./gsim```
  
 
-The first time one wants to run a simulation after downloading the required Python packages and the simulation environment, one enters the folder **python** and creates the folder **output/autoencoder_experiments/** with subfolders **savedWeights** and **savedResults**. After that, one will be able to execute any simulation in the aforementioned paper by running `run_experiment.py` file that is located  in the folder **python/** followed by the experiment number as will be explained with an example later.
+The first time one wants to run a simulation after downloading the required Python packages and the simulation environment, one enters the folder **python** and creates the folder **output** with subfolder **autoencoder_experiments**. In the latter, create two subfolders **savedWeights** and **savedResults**. After that, one will be able to execute any simulation in the aforementioned paper by running `run_experiment.py` file that is located  in the folder **python/** followed by the experiment number as will be explained with an example later.
 
 The experiments reproducing different figures in the paper are organized in methods located in the file `Experiments/autoencoder_experiments.py`. The comments before each method indicate which figure(s) on the paper it generates.
 
