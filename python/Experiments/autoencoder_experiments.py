@@ -130,7 +130,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         exp_num = int(
             re.search(r'\d+',
                       sys._getframe().f_code.co_name).group())
-        # np.random.seed(500)
+        np.random.seed(510)
 
         # Generator
         v_central_freq = [1.4e9]
@@ -138,7 +138,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             # tx_power=np.tile(np.array([[11, 7], [10, 6]]), (int(np.size(v_central_freq) / 2), 1)), # dBm
             tx_power_interval=[5, 11],  # dBm
             b_shadowing=True,
-            num_precomputed_shadowing_mats=5000,
+            num_precomputed_shadowing_mats=10,
             v_central_frequencies=v_central_freq)
         # Sampler
         sampling_factor = np.concatenate((np.linspace(0.05, 0.1, 10, endpoint=False),
@@ -150,7 +150,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         architecture_id = '8'
         filters = 27
         code_length = 64
-        train_autoencoder = True
+        train_autoencoder = False
         num_maps = 500000
         ve_split_frac = 1
         if not train_autoencoder:
@@ -214,8 +214,9 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         estimators_to_sim = list(range(1, 7))
 
         # Generate a remcom test map and reconstruct it
+        # realization_map_generator = map_generator
         realization_map_generator = InsiteMapGenerator(
-            l_file_num=np.arange(41, 43),  # the list is the interval [start, stop)
+            l_file_num=np.arange(1, 43),  # the list is the interval [start, stop)
         )
         realization_sampler = MapSampler()
         map, meta_map, _ = realization_map_generator.generate()
@@ -243,7 +244,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                           meta_map,
                                           l_recontsructed_maps,
                                           exp_num)
-
+        # exit()
         # Simulation pararameters
         n_runs = 1000
         n_run_estimators = len(estimators_to_sim)
@@ -1731,8 +1732,8 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         fig1.subplots_adjust(hspace=0.7, wspace=0.4)
         n_rows = len(l_true_map)
         n_cols = len(l_sampled_maps) + len(l_reconstructed_maps) + 1
-        v_min = -90
-        v_max = -20
+        v_min = -100
+        v_max = -40
         tr_im_col = []
         for ind_row in range(n_rows):
             ax = fig1.add_subplot(n_rows, n_cols, 1)
