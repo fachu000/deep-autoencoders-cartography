@@ -31,6 +31,7 @@ class AutoEncoderEstimator(BemMapEstimator):
                  c_length=4,
                  n_filters=32,
                  activ_func_name=None,
+                 est_separately_accr_freq=False,
                  add_mask_channel=True,
                  use_masks_as_tensor=False,
                  weight_file=None,
@@ -44,6 +45,7 @@ class AutoEncoderEstimator(BemMapEstimator):
         self.use_masks_as_tensor = use_masks_as_tensor
         self.n_filters = n_filters
         self.activ_func_name = activ_func_name
+        self.est_separately_accr_freq = est_separately_accr_freq
         architecture_name = 'convolutional_autoencoder_%s' % arch_id
         gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.9)
         # self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
@@ -56,7 +58,8 @@ class AutoEncoderEstimator(BemMapEstimator):
                                                 mask_as_tensor=self.use_masks_as_tensor,
                                                 bases=self.bases_vals,
                                                 n_filters=self.n_filters,
-                                                activ_function_name=self.activ_func_name), architecture_name)()
+                                                activ_function_name=self.activ_func_name,
+                                                est_separately_accr_freq=self.est_separately_accr_freq), architecture_name)()
         self.chosen_model.compile(optimizer=tf.compat.v1.train.AdamOptimizer(),
                                   loss='mse',
                                   sample_weight_mode='temporal')

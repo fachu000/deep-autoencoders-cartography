@@ -17,6 +17,7 @@ class Autoencoder:
                  bases,
                  n_filters=32,
                  activ_function_name=None,
+                 est_separately_accr_freq=False,
                  kernel_size=(3, 3),
                  conv_stride=1,
                  pool_size_str=2,
@@ -33,7 +34,7 @@ class Autoencoder:
         self.use_batch_norm = use_batch_norm
         self.c_len = c_len
         self.norm_hereToo = False
-
+        self.est_separately_accr_freq = est_separately_accr_freq
         if activ_function_name:
             self.activ_func = 'obtain_%s' % activ_function_name
         else:
@@ -1241,7 +1242,7 @@ class Autoencoder:
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
 
-        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+        x = keras.layers.MaxPooling2D(pool_size=self.pool_size_str,
                                           strides=self.pool_size_str,
                                           padding='same')(x)
 
@@ -1255,7 +1256,7 @@ class Autoencoder:
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
 
-        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+        x = keras.layers.MaxPooling2D(pool_size=self.pool_size_str,
                                           strides=self.pool_size_str,
                                           padding='same')(x)
 
@@ -1269,7 +1270,7 @@ class Autoencoder:
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
 
-        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+        x = keras.layers.MaxPooling2D(pool_size=self.pool_size_str,
                                           strides=self.pool_size_str,
                                           padding='same')(x)
 
@@ -1337,7 +1338,10 @@ class Autoencoder:
 
         for filters in n_layers_and_n_filters[::-1]:
             if filters == 1:
-                filters = self.bases.shape[0]
+                if self.est_separately_accr_freq:
+                    filters = self.bases.shape[1]
+                else:
+                    filters = self.bases.shape[0]
             if self.height == 64:    # Assume square inputs
                 kernel_to_use = (5, 5)
             else:
@@ -1350,12 +1354,17 @@ class Autoencoder:
                                              padding='same')(x)
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
-        x = tf.cast(x, tf.float64)
-        outputs = 10 * (tf.keras.backend.log(
-            tf.matmul(db_to_natural(x), tf.cast(self.bases, tf.float64))) / tf.keras.backend.log(
-            tf.cast(10, tf.float64)))
-        outputs = tf.reshape(outputs, [-1] + [
-            outputs.shape[1] * outputs.shape[2] * outputs.shape[3], 1])
+
+        if self.est_separately_accr_freq:
+            outputs = tf.reshape(x, [-1] + [
+                x.shape[1] * x.shape[2] * x.shape[3], 1])
+        else:
+            x = tf.cast(x, tf.float64)
+            outputs = 10 * (tf.keras.backend.log(
+                tf.matmul(db_to_natural(x), tf.cast(self.bases, tf.float64))) / tf.keras.backend.log(
+                tf.cast(10, tf.float64)))
+            outputs = tf.reshape(outputs, [-1] + [
+                outputs.shape[1] * outputs.shape[2] * outputs.shape[3], 1])
 
         # Instantiate Decoder Model
         decoder = Model(latent_inputs, outputs, name='decoder')
@@ -1369,7 +1378,7 @@ class Autoencoder:
         # plot_the_model(encoder, decoder, autoencoder)
         return autoencoder
 
-    # 32 layer network: 13 for encoder and 13 for decoder (fully convolutional)
+    # 32 layer network: 16 for encoder and 16 for decoder (fully convolutional)
     def convolutional_autoencoder_9(self):
         # Build the Autoencoder Model
 

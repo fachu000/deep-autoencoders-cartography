@@ -88,15 +88,15 @@ class GroupLassoMKEstimator(MapEstimator):
         all_chol_matrices = np.reshape(chol_matrices, (n_measurements, n_measurements * self.n_kernels), order='F')
         gamma = Parameter(nonneg=True)
 
-        objective = Minimize(0.5 * sum_squares((all_kernel_matrices * kernel_coeffs) - power_meas_vec) +
-                             gamma * (norm(all_chol_matrices * kernel_coeffs, 2)))
+        objective = Minimize(0.5 * sum_squares((all_kernel_matrices @ kernel_coeffs) - power_meas_vec) +
+                             gamma * (norm(all_chol_matrices @ kernel_coeffs, 2)))
         p = Problem(objective)
         gamma_value = self.par_lambda
         gamma.value = gamma_value
         result = p.solve(solver='ECOS')
         kernel_coeffs = kernel_coeffs.value
-
-        print(kernel_coeffs)
+        # print(kernel_coeffs)
+        
         # Estimate the map using obtained kernel coefficients
         estimated_map = np.zeros(sampled_map.shape)
         for ind_y in range(len(y_array)):

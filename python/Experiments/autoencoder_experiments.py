@@ -3,6 +3,7 @@ import pickle
 import sys
 import re
 import itertools
+import time
 from Generators.map_generator import MapGenerator
 from Generators.gudmundson_map_generator import GudmundsonMapGenerator
 from Generators.insite_map_generator import InsiteMapGenerator
@@ -130,7 +131,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         exp_num = int(
             re.search(r'\d+',
                       sys._getframe().f_code.co_name).group())
-        np.random.seed(510)
+        # np.random.seed(510)
 
         # Generator
         v_central_freq = [1.4e9]
@@ -138,11 +139,11 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             # tx_power=np.tile(np.array([[11, 7], [10, 6]]), (int(np.size(v_central_freq) / 2), 1)), # dBm
             tx_power_interval=[5, 11],  # dBm
             b_shadowing=True,
-            num_precomputed_shadowing_mats=10,
+            num_precomputed_shadowing_mats=100,
             v_central_frequencies=v_central_freq)
         # Sampler
-        sampling_factor = np.concatenate((np.linspace(0.05, 0.1, 10, endpoint=False),
-                                          np.linspace(0.1, 0.2, 7)), axis=0)[0:14]
+        sampling_factor = np.concatenate((np.linspace(0.01, 0.1, 10, endpoint=False),
+                           np.linspace(0.1, 0.2, 7)), axis=0)[0:14]
         testing_sampler = MapSampler(std_noise=1)
 
         # Estimators
@@ -150,7 +151,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         architecture_id = '8'
         filters = 27
         code_length = 64
-        train_autoencoder = False
+        train_autoencoder = True
         num_maps = 500000
         ve_split_frac = 1
         if not train_autoencoder:
@@ -211,7 +212,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             KNNEstimator(map_generator.x_length,
                          map_generator.y_length)
         ]
-        estimators_to_sim = list(range(1, 7))
+        estimators_to_sim = list(range(1, 2))
 
         # Generate a remcom test map and reconstruct it
         # realization_map_generator = map_generator
@@ -246,28 +247,38 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                           exp_num)
         # exit()
         # Simulation pararameters
-        n_runs = 1000
+        n_runs = 100
         n_run_estimators = len(estimators_to_sim)
         simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
 
         # run the simulation
         assert n_run_estimators <= len(all_estimators), 'The number of estimators to simulate must be ' \
                                                         'less or equal to the total number of estimators'
-        RMSE = np.zeros((len(estimators_to_sim), len(sampling_factor)))
+        RMSE = np.zeros((len(estimators_to_sim), np.size(sampling_factor)))
         labels = []
+        l_elapsed_times = []
         for ind_est in range(len(estimators_to_sim)):
+            start_time = time.time()
             current_estimator = all_estimators[estimators_to_sim[ind_est] -
                                                1]
-            for ind_sampling in range(np.size(sampling_factor)):
+            for ind_sampling in range(len(sampling_factor)):
                 testing_sampler.v_sampling_factor = sampling_factor[ind_sampling]
                 RMSE[ind_est, ind_sampling] = simulator.simulate(
                     generator=map_generator,
                     sampler=testing_sampler,
                     estimator=current_estimator)
-            labels += [current_estimator.str_name]
-            # Plot results
-        print(RMSE)
 
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            l_elapsed_times += [elapsed_time]
+            labels += [current_estimator.str_name]
+
+        print('The average run-time of the estimators %s for  %d runs each is' % (estimators_to_sim, n_runs),
+              "%s" % (np.array(l_elapsed_times) / n_runs))
+        print('The RMSE for all the simulated estimators is %s' % RMSE)
+        # quit()
+
+        # Plot results
         G = GFigure(xaxis=np.rint(1024 * sampling_factor),
                     yaxis=RMSE[0, :],
                     xlabel='Number of measurements, ' + r'$\vert \Omega \vert $',
@@ -296,7 +307,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                           )
 
         # Sampler
-        sampling_factor = np.concatenate((np.linspace(0.05, 0.2, 10, endpoint=False), np.linspace(0.2, 0.45, 7)),
+        sampling_factor = np.concatenate((np.linspace(0.01, 0.1, 10, endpoint=False), np.linspace(0.1, 0.2, 7)),
                                          axis=0)
         testing_sampler = MapSampler()
 
@@ -305,7 +316,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         architecture_id = '8'
         filters = 27
         code_length = 64
-        train_autoencoder = True
+        train_autoencoder = False
         if not train_autoencoder:
             estimator_1 = AutoEncoderEstimator(
                 n_pts_x=testing_generator.n_grid_points_x,
@@ -330,7 +341,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             ve_split_frac = [0.5, 0.5]
             training_generator = InsiteMapGenerator(
                 l_file_num=np.arange(1, 41))
-            training_sampler = MapSampler(v_sampling_factor=[0.05, 0.45])
+            training_sampler = MapSampler(v_sampling_factor=[0.01, 0.2])
 
             history, codes = estimator_1.train(generator=training_generator,
                                                sampler=training_sampler,
@@ -400,7 +411,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                     legend=labels[0])
         if n_run_estimators > 1:
             for ind_plot in range(n_run_estimators - 1):
-                G.add_curve(xaxis=np.rint(1024 * sampling_factor), yaxis=RMSE[ind_plot + 1, :],
+                G.add_curve(xaxis=np.rint(970 * sampling_factor), yaxis=RMSE[ind_plot + 1, :],
                             legend=labels[ind_plot + 1])
         return G
 
@@ -952,13 +963,13 @@ class ExperimentSet(gsim.AbstractExperimentSet):
             m_basis_functions=m_basis_functions,
             tx_power_interval=[5, 11],  # dBm
             b_shadowing=True,
-            num_precomputed_shadowing_mats=3000,
+            num_precomputed_shadowing_mats=100,
             v_central_frequencies=v_central_freq,
             noise_power_interval=[-100, -90])  # dBm
 
         # Sampler
         # sampling_factor = [0.05]
-        sampling_factor = np.concatenate((np.linspace(0.05, 0.1, 1, endpoint=False), np.linspace(0.1, 0.2, 1)), axis=0)
+        sampling_factor = [0.05] # np.concatenate((np.linspace(0.05, 0.2, 10, endpoint=False), np.linspace(0.2, 0.45, 7)), axis=0)
         testing_sampler = MapSampler(std_noise=1)
 
         # Estimators
@@ -966,7 +977,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         architecture_id = '8'
         filters = 32
         code_length = 64
-        train_autoencoder = True
+        train_autoencoder = False
         num_maps = 25000
         ve_split_frac = 1
         if not train_autoencoder:
@@ -1022,11 +1033,11 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                                         n_grid_points_y=map_generator.n_grid_points_y,
                                                         bases_vals=m_basis_functions[0:len(v_central_freq), :]),
                           estimator_1]
-        estimators_to_sim = [1]
+        estimators_to_sim = [1, 2]
         G = []
 
         # Show realization
-        b_show_realization = True
+        b_show_realization = False
         if b_show_realization:
 
             t_true_map, m_meta_map, t_channel_pow = map_generator.generate()
@@ -1100,16 +1111,18 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                                               file_name='True_and_Estimated_bcoeffs')
 
         # Simulation pararameters
-        n_runs = 1000
+        n_runs = 100
         n_run_estimators = len(estimators_to_sim)
-        simulator = Simulator(n_runs=n_runs, use_parallel_proc=True)
+        simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
 
         # run the simulation
         assert n_run_estimators <= len(all_estimators), 'The number of estimators to simulate must be ' \
                                                         'less or equal to the total number of estimators'
         RMSE = np.zeros((len(estimators_to_sim), len(sampling_factor)))
         labels = []
+        l_elapsed_times = []
         for ind_est in range(len(estimators_to_sim)):
+            start_time = time.time()
             current_estimator = all_estimators[estimators_to_sim[ind_est] -
                                                1]
             for ind_sampling in range(np.size(sampling_factor)):
@@ -1118,10 +1131,17 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                     generator=map_generator,
                     sampler=testing_sampler,
                     estimator=current_estimator)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            l_elapsed_times += [elapsed_time]
             labels += [current_estimator.str_name]
-            # Plot results
-        print(RMSE)
 
+        print('The average run-time of the estimators %s for  %d runs each is' % (estimators_to_sim, n_runs),
+              "%s" % (np.array(l_elapsed_times) / n_runs))
+        print('The RMSE for all the simulated estimators is %s' % RMSE)
+        quit()
+
+        # Plot results
         G2 = GFigure(xaxis=np.rint(1024 * sampling_factor),
                      yaxis=RMSE[0, :],
                      xlabel='Number of measurements, ' + r'$\vert \Omega \vert $',
@@ -1681,6 +1701,159 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                             legend=labels[ind_plot + 1])
         return G
 
+    # Generates Fig...... for Gaussian functions: this experiment invokes a simulator with DL
+    # estimator and plots the map RMSE as a function of the number of measurements (weight sharing along
+    # the frequency domain). The network is trained and tested over the Gudmundson data set
+    def experiment_1020(self):
+        # Execution parameters
+        exp_num = int(
+            re.search(r'\d+',
+                      sys._getframe().f_code.co_name).group())
+        np.random.seed(4007)
+
+        # Generator
+        v_central_freq = np.linspace(1.4e9, 1.45e9, 6)[1:4]
+        v_sampled_freq = np.linspace(1.4e9, 1.45e9, 42)[5:37]
+        bandwidth = 2e7  # MHz
+
+        m_basis_functions = MapGenerator.generate_bases(
+            v_central_frequencies=v_central_freq,
+            v_sampled_frequencies=v_sampled_freq,
+            fun_base_function=lambda freq: MapGenerator.gaussian_base(freq, bandwidth / 4),
+            b_noise_function=True,
+        )
+
+        map_generator = GudmundsonMapGenerator(
+            m_basis_functions=m_basis_functions,
+            tx_power_interval=[5, 11],  # dBm
+            b_shadowing=True,
+            num_precomputed_shadowing_mats=3000,
+            v_central_frequencies=v_central_freq,
+            noise_power_interval=[-100, -90])  # dBm
+
+        # Sampler
+        # sampling_factor = [0.05]
+        sampling_factor = np.concatenate((np.linspace(0.05, 0.1, 10, endpoint=False), np.linspace(0.1, 0.2, 7)),
+                                         axis=0)
+        testing_sampler = MapSampler(std_noise=1)
+
+        # Estimators
+        architecture_id = '8'
+        filters = 32
+        code_length = 64
+        num_maps = 125000
+        ve_split_frac = 1
+        n_estimators = 2  # one for estimating separately for each freq(weight sharing) sharing and another with BEM
+        all_estimators = []
+        for ind_est in range(n_estimators):
+            b_estimate_separt = False
+            if ind_est == 0:
+                b_estimate_separt = True
+            estimator = AutoEncoderEstimator(
+                n_pts_x=map_generator.n_grid_points_x,
+                n_pts_y=map_generator.n_grid_points_y,
+                arch_id=architecture_id,
+                c_length=code_length,
+                bases_vals=m_basis_functions,
+                n_filters=filters,
+                est_separately_accr_freq=b_estimate_separt)
+            # Train
+            training_sampler = MapSampler(v_sampling_factor=[0.05, 0.2], std_noise=1)
+            history, codes = estimator.train(generator=map_generator,
+                                             sampler=training_sampler,
+                                             learning_rate=1e-4,
+                                             n_super_batches=6,
+                                             n_maps=num_maps,
+                                             perc_train=0.96,
+                                             v_split_frac=ve_split_frac,
+                                             n_resamples_per_map=1,
+                                             n_epochs=50)
+            # Plot training results: losses and visualize codes if enabled
+            # ExperimentSet.plot_histograms_of_codes_and_visualize(
+            #     map_generator.x_length,
+            #     map_generator.y_length,
+            #     codes,
+            #     estimator_1.chosen_model,
+            #     exp_num,
+            # )
+            # ExperimentSet.plot_train_and_val_losses(history, exp_num)
+            all_estimators += [estimator]
+
+        estimators_to_sim = [1, 2]
+        G = []
+
+        # Show realization
+        b_show_realization = False
+        if b_show_realization:
+
+            t_true_map, m_meta_map, t_channel_pow = map_generator.generate()
+            testing_sampler.v_sampling_factor = 0.5
+            sampled_map, mask = testing_sampler.sample_map(t_true_map, m_meta_map)
+
+            # obtain PSD estimates at random point
+            rand_pt = np.random.choice(map_generator.n_grid_points_x, size=2)
+            l_all_psds = [t_true_map[rand_pt[0], rand_pt[1], :]]
+
+            # True BEM coefficient maps
+            reconst_labels = ['True']
+            for ind_estimator in range(len(estimators_to_sim)):
+                current_estimator = all_estimators[estimators_to_sim[ind_estimator] - 1]
+                estimated_map = current_estimator.estimate_map(sampled_map, mask, m_meta_map)
+                l_all_psds += [estimated_map[rand_pt[0], rand_pt[1], :]]
+                reconst_labels += [current_estimator.str_name]
+
+
+            # interpolate and plot psd estimates
+            all_psds = db_to_dbm(np.array(l_all_psds))  # psd in dBm
+            print('The estimated PSDs are:\n')
+            print(all_psds)
+            v_sampled_freq_mhz = v_sampled_freq / 1e6
+            G1 = GFigure(xaxis=v_sampled_freq_mhz,
+                         yaxis=all_psds[0, :],
+                         xlabel='f [MHz]',
+                         ylabel=r"$ \Psi(\mathbf{x},f) [dBm] $",
+                         legend=reconst_labels[0])
+            for ind_plot in range(all_psds.shape[0] - 1):
+                G1.add_curve(xaxis=v_sampled_freq_mhz, yaxis=all_psds[ind_plot + 1, :],
+                             legend=reconst_labels[ind_plot + 1])
+
+            G.append(G1)
+
+        # Simulation pararameters
+        n_runs = 1000
+        n_run_estimators = len(estimators_to_sim)
+        simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
+
+        # run the simulation
+        assert n_run_estimators <= len(all_estimators), 'The number of estimators to simulate must be ' \
+                                                        'less or equal to the total number of estimators'
+        RMSE = np.zeros((len(estimators_to_sim), len(sampling_factor)))
+        labels = ['Weight sharing', 'Basis expansion model']
+        for ind_est in range(len(estimators_to_sim)):
+            current_estimator = all_estimators[estimators_to_sim[ind_est] -
+                                               1]
+            for ind_sampling in range(np.size(sampling_factor)):
+                testing_sampler.v_sampling_factor = sampling_factor[ind_sampling]
+                RMSE[ind_est, ind_sampling] = simulator.simulate(
+                    generator=map_generator,
+                    sampler=testing_sampler,
+                    estimator=current_estimator)
+            # Plot results
+        print(RMSE)
+
+        G2 = GFigure(xaxis=np.rint(1024 * sampling_factor),
+                     yaxis=RMSE[0, :],
+                     xlabel='Number of measurements, ' + r'$\vert \Omega \vert $',
+                     ylabel="RMSE(dB)",
+                     legend=labels[0])
+        if n_run_estimators > 1:
+            for ind_plot in range(n_run_estimators - 1):
+                G2.add_curve(xaxis=np.rint(1024 * sampling_factor), yaxis=RMSE[ind_plot + 1, :],
+                             legend=labels[ind_plot + 1])
+        ExperimentSet.plot_and_save_RMSE_vs_sf_modified(sampling_factor, RMSE, exp_num, labels)
+        G.append(G2)
+        return G
+
 
     @staticmethod
     def plot_reconstruction(x_len,
@@ -1778,7 +1951,7 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         cbar_ax = fig1.add_axes([0.88, 0.28, 0.02, 0.43])
         fig1.colorbar(tr_im_col, cax=cbar_ax, label='dBm')
 
-        plt.show()  # (block=False)
+        # plt.show()  # (block=False)
         # plt.pause(10)
         fig1.savefig(
             'output/autoencoder_experiments/savedResults/True_Sampled_and_Rec_maps%d.pdf'
@@ -1870,14 +2043,14 @@ class ExperimentSet(gsim.AbstractExperimentSet):
                 exp_num, 'wb') as f_RMSE:
             pickle.dump(RMSE, f_RMSE)
         fig = plt.figure()
-        clrs_list = ['b', 'r', 'g', 'k', 'm', 'c']  # list of basic colors
-        styl_list = ['-', '-', '--', ':', '-', '-.']  # list of basic linestyles
+        clrs_list = ['b', 'r', 'g', 'm', 'k', 'c']  # list of basic colors
+        styl_list = ['-', '-', '-.', '--', ':', '--']  # list of basic linestyles
         makers_list = ['d', '>', 's', '*', 'o', 'v']
         n_curves = RMSE.shape[0]
         for ind_curv in range(n_curves):
             RMSE_plot = RMSE[ind_curv, :]
             label = labels[ind_curv]
-            plt.plot(np.rint(1024 * sampling_factor),
+            plt.plot(np.rint(970 * sampling_factor), # multiply by 1024 instead of 970  for Gudmundson dataset
                      RMSE_plot.T,
                      linestyle=styl_list[ind_curv],
                      marker=makers_list[ind_curv],
