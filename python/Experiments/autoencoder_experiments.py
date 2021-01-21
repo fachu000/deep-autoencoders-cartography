@@ -1854,6 +1854,282 @@ class ExperimentSet(gsim.AbstractExperimentSet):
         G.append(G2)
         return G
 
+    #  RMSE comparison with Gudmundson maps: 64 X 64 grid with 1.5 m spacing vs  32 X 32 grid with 3 m spacing
+    def experiment_1021(self):
+        # Execution parameters
+        exp_num = int(
+            re.search(r'\d+',
+                      sys._getframe().f_code.co_name).group())
+        # np.random.seed(400)
+
+        # Generator
+        v_central_freq = [1.4e9]
+        num_precomputed_sh = 600000
+
+        # Sampler
+        sampling_factor = np.concatenate((np.linspace(0.05, 0.1, 10, endpoint=False), np.linspace(0.1, 0.2, 7)),
+                                         axis=0)[0:14]
+        testing_sampler = MapSampler()
+
+        # Estimators
+        v_architecture_ids = ['8b', '8']
+        v_grid_size = [64, 32]
+        v_filters = [27, 27]
+        v_code_length = [256, 64]
+
+        v_num_maps = [num_precomputed_sh, 500000]
+        ve_split_frac = 1
+        v_epochs = [100, 100]
+        v_learning_rate = [5e-4, 5e-4]
+        v_superbatches = [4, 1]
+        v_sampling_factor = [0.05, 0.2]
+        v_sampling_diff_rat = [4, 1]  # to have the same number of measurements for both grids
+
+        # 1. Generators and autoencoder estimators
+        labels = ["64 X 64 grid (1.5 m spacing)", "32 X 32 grid (3 m spacing)"]
+        all_map_generators = []
+        all_estimators = []
+
+        for ind_est in range(len(v_architecture_ids)):
+
+            # Generator
+            map_generator = GudmundsonMapGenerator(
+                n_grid_points_x=v_grid_size[ind_est],
+                n_grid_points_y=v_grid_size[ind_est],
+                # tx_power=np.tile(np.array([[11, 7], [10, 6]]), (int(np.size(v_central_freq) / 2), 1)), # dBm
+                tx_power_interval=[5, 11],  # dBm
+                b_shadowing=True,
+                num_precomputed_shadowing_mats=num_precomputed_sh,
+                v_central_frequencies=v_central_freq)
+            all_map_generators += [map_generator]
+
+            # autoencoder estimator
+            if ind_est == 0:
+                estimator = AutoEncoderEstimator(
+                    n_pts_x=map_generator.n_grid_points_x,
+                    n_pts_y=map_generator.n_grid_points_y,
+                    arch_id=v_architecture_ids[ind_est],
+                    c_length=v_code_length[ind_est],
+                    bases_vals=map_generator.m_basis_functions,
+                    n_filters=v_filters[ind_est],
+                    weight_file=
+                    'output/autoencoder_experiments/savedWeights/weights_trained_est1.h5')
+
+                # Train autoencoder
+                training_sampler = MapSampler(v_sampling_factor=[v_sampling_factor[0] / v_sampling_diff_rat[ind_est],
+                                                                 v_sampling_factor[1] / v_sampling_diff_rat[ind_est]])
+                history, codes = estimator.train(generator=map_generator,
+                                                 sampler=training_sampler,
+                                                 learning_rate=v_learning_rate[ind_est],
+                                                 n_super_batches=v_superbatches[ind_est],
+                                                 n_maps=v_num_maps[ind_est],
+                                                 perc_train=0.9,
+                                                 v_split_frac=ve_split_frac,
+                                                 n_resamples_per_map=1,
+                                                 n_epochs=v_epochs[ind_est])
+
+                # Plot training results: losses and visualize codes if enabled
+                ExperimentSet.plot_histograms_of_codes_and_visualize(
+                    map_generator.x_length,
+                    map_generator.y_length,
+                    codes,
+                    estimator.chosen_model,
+                    exp_num,
+                )
+                ExperimentSet.plot_train_and_val_losses(history, exp_num)
+            else:
+                estimator = AutoEncoderEstimator(
+                    n_pts_x=map_generator.n_grid_points_x,
+                    n_pts_y=map_generator.n_grid_points_y,
+                    arch_id=v_architecture_ids[ind_est],
+                    c_length=v_code_length[ind_est],
+                    bases_vals=map_generator.m_basis_functions,
+                    n_filters=v_filters[ind_est],
+                    weight_file=
+                    'output/autoencoder_experiments/savedWeights/weights_trained_est2.h5'
+                )
+
+            estimator.str_name = labels[ind_est]
+            all_estimators += [estimator]
+
+
+        # Simulation pararameters
+        n_runs = 500
+
+        simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
+
+        # run the simulation
+        estimators_to_sim = [1, 2]
+        assert len(estimators_to_sim) <= len(all_estimators), 'The number of estimators to simulate must be ' \
+                                                              'less or equal to the total number of estimators'
+        RMSE = np.zeros((len(estimators_to_sim), len(sampling_factor)))
+
+        for ind_est in range(len(estimators_to_sim)):
+            current_estimator = all_estimators[estimators_to_sim[ind_est] -
+                                               1]
+            for ind_sampling in range(np.size(sampling_factor)):
+                if ind_est == 0:
+                    testing_sampler.v_sampling_factor = sampling_factor[ind_sampling] / 4
+                else:
+                    testing_sampler.v_sampling_factor = sampling_factor[ind_sampling]
+                RMSE[ind_est, ind_sampling] = simulator.simulate(
+                    generator=all_map_generators[estimators_to_sim[ind_est] -
+                                                 1],
+                    sampler=testing_sampler,
+                    estimator=current_estimator)
+
+        # Plot results
+        print(RMSE)
+        G = GFigure(
+            xaxis=np.rint(
+                all_map_generators[1].n_grid_points_x * all_map_generators[1].n_grid_points_y * sampling_factor),
+            yaxis=RMSE[0, :],
+            xlabel="Number of measurements, " + r"$\vert \Omega \vert $",
+            ylabel="RMSE(dB)",
+            legend=labels[0])
+        if len(estimators_to_sim) >= 1:
+            for ind_plot in range(len(estimators_to_sim) - 1):
+                G.add_curve(xaxis=np.rint(
+                    all_map_generators[1].n_grid_points_x * all_map_generators[
+                        1].n_grid_points_y * sampling_factor),
+                    yaxis=RMSE[ind_plot + 1, :], legend=labels[ind_plot + 1])
+        ExperimentSet.plot_and_save_RMSE_vs_sf_modified(sampling_factor, RMSE, exp_num, labels)
+        return G
+
+    #  RMSE comparison with the Wireless Insite maps: 64 X 64 grid with 1.5 m spacing vs  32 X 32 grid with 3 m spacing
+    def experiment_1022(self):
+        # Execution parameters
+        exp_num = int(
+            re.search(r'\d+',
+                      sys._getframe().f_code.co_name).group())
+        # np.random.seed(400)
+
+        # Sampler
+        sampling_factor = np.concatenate((np.linspace(0.05, 0.1, 10, endpoint=False), np.linspace(0.1, 0.2, 7)),
+                                         axis=0)
+        testing_sampler = MapSampler()
+
+        # Estimators
+        v_architecture_ids = ['8b', '8']
+        v_grid_size = [64, 32]
+        v_filters = [27, 27]
+        v_code_length = [256, 64]
+
+        v_num_maps = [125, 125000]
+        ve_split_frac = [0.5, 0.5]
+        v_epochs = [2, 100]
+        v_superbatches = [1, 1]
+        v_sampling_factor = [0.05, 0.2]
+        v_sampling_diff_rat = [4, 1]  # to have the same number of measurements for both grids
+
+        # 1. Generators and autoencoder estimators
+        labels = ["64 X 64 grid (1.5 m spacing)", "32 X 32 grid (3 m spacing)"]
+        all_map_generators = []
+        all_estimators = []
+
+        for ind_est in range(len(v_architecture_ids)):
+
+            if v_grid_size[ind_est] == 32:
+                distance_fac = 2
+            else:
+                distance_fac = 1
+
+            # Generator
+            testing_generator = InsiteMapGenerator(
+                n_grid_points_x=v_grid_size[ind_est],
+                n_grid_points_y=v_grid_size[ind_est],
+                l_file_num=np.arange(41, 43),
+                inter_grid_points_dist_factor=distance_fac)
+            all_map_generators += [testing_generator]
+
+            # autoencoder estimator
+            if ind_est == 2:
+                estimator = AutoEncoderEstimator(
+                    n_pts_x=testing_generator.n_grid_points_x,
+                    n_pts_y=testing_generator.n_grid_points_y,
+                    arch_id=v_architecture_ids[ind_est],
+                    c_length=v_code_length[ind_est],
+                    bases_vals=testing_generator.m_basis_functions,
+                    n_filters=v_filters[ind_est],
+                    weight_file=
+                    'output/autoencoder_experiments/savedWeights/weights_trained_est1.h5')
+
+            else:
+                estimator = AutoEncoderEstimator(
+                    n_pts_x=testing_generator.n_grid_points_x,
+                    n_pts_y=testing_generator.n_grid_points_y,
+                    arch_id=v_architecture_ids[ind_est],
+                    c_length=v_code_length[ind_est],
+                    bases_vals=testing_generator.m_basis_functions,
+                    n_filters=v_filters[ind_est])
+                    # weight_file=
+                    # 'output/autoencoder_experiments/savedWeights/weights_trained_est2.h5')
+
+            # Train autoencoder
+            training_generator = InsiteMapGenerator(
+                n_grid_points_x=v_grid_size[ind_est],
+                n_grid_points_y=v_grid_size[ind_est],
+                l_file_num=np.arange(1, 41),
+                inter_grid_points_dist_factor=distance_fac)
+            training_sampler = MapSampler(v_sampling_factor=[v_sampling_factor[0] / v_sampling_diff_rat[ind_est],
+                                                             v_sampling_factor[1] / v_sampling_diff_rat[ind_est]])
+            history, codes = estimator.train(generator=training_generator,
+                                             sampler=training_sampler,
+                                             learning_rate=5e-4,
+                                             n_super_batches=v_superbatches[ind_est],
+                                             n_maps=v_num_maps[ind_est],
+                                             perc_train=0.9,
+                                             v_split_frac=ve_split_frac,
+                                             n_resamples_per_map=10,
+                                             n_epochs=v_epochs[ind_est])
+
+            ExperimentSet.plot_train_and_val_losses(history, exp_num)
+
+            estimator.str_name = labels[ind_est]
+            all_estimators += [estimator]
+
+        # Simulation pararameters
+        n_runs = 1000
+
+        simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
+
+        # run the simulation
+        estimators_to_sim = [2]
+        assert len(estimators_to_sim) <= len(all_estimators), 'The number of estimators to simulate must be ' \
+                                                              'less or equal to the total number of estimators'
+        RMSE = np.zeros((len(estimators_to_sim), len(sampling_factor)))
+
+        for ind_est in range(len(estimators_to_sim)):
+            current_estimator = all_estimators[estimators_to_sim[ind_est] -
+                                               1]
+            for ind_sampling in range(np.size(sampling_factor)):
+                if ind_est == 0:
+                    testing_sampler.v_sampling_factor = sampling_factor[ind_sampling] / 4
+                else:
+                    testing_sampler.v_sampling_factor = sampling_factor[ind_sampling]
+                RMSE[ind_est, ind_sampling] = simulator.simulate(
+                    generator=all_map_generators[estimators_to_sim[ind_est] -
+                                                 1],
+                    sampler=testing_sampler,
+                    estimator=current_estimator)
+
+        # Plot results
+        print(RMSE)
+        G = GFigure(
+            xaxis=np.rint(
+                970 * sampling_factor),
+            yaxis=RMSE[0, :],
+            xlabel="Number of measurements, " + r"$\vert \Omega \vert $",
+            ylabel="RMSE(dB)",
+            legend=labels[0])
+        if len(estimators_to_sim) >= 1:
+            for ind_plot in range(len(estimators_to_sim) - 1):
+                G.add_curve(xaxis=np.rint(
+                    970 * sampling_factor),
+                    yaxis=RMSE[ind_plot + 1, :], legend=labels[ind_plot + 1])
+        ExperimentSet.plot_and_save_RMSE_vs_sf_modified(sampling_factor, RMSE, exp_num, labels)
+        return G
+
 
     @staticmethod
     def plot_reconstruction(x_len,

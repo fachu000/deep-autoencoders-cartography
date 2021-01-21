@@ -16,6 +16,7 @@ class InsiteMapGenerator(MapGenerator):
             # closest square to the map size provided by Wireless Insight soft is 59536 = 244^2
             filter_map=True,
             filter_size=3,
+            inter_grid_points_dist_factor=1,  # set to an integer greater than 1
             *args,
             **kwargs):
 
@@ -25,6 +26,7 @@ class InsiteMapGenerator(MapGenerator):
         self.large_map_size = large_map_size
         self.filter_map = filter_map
         self.filter_size = filter_size
+        self.inter_grid_points_dist_factor = inter_grid_points_dist_factor
 
     def generate_power_map_per_freq(self, num_bases):
 
@@ -32,7 +34,7 @@ class InsiteMapGenerator(MapGenerator):
 
         # Generate coordinates of random patch
         patch_indices = np.random.choice(self.large_map_size -
-                                         self.n_grid_points_x,
+                                         self.n_grid_points_x * self.inter_grid_points_dist_factor,
                                          size=2)
 
         for basis_ind in range(num_bases):
@@ -77,10 +79,19 @@ class InsiteMapGenerator(MapGenerator):
         return l_maps, obtain_meta_map(l_maps[0])
 
     def get_patch(self, large_image, startRow_and_Col):
-        return large_image[startRow_and_Col[0]:startRow_and_Col[0] +
-                                               self.n_grid_points_y,
-               startRow_and_Col[1]:startRow_and_Col[1] +
-                                   self.n_grid_points_x]
+        if self.inter_grid_points_dist_factor > 1:
+            v_patch_indices_y = np.array(range(startRow_and_Col[0], startRow_and_Col[0] +
+                                               self.inter_grid_points_dist_factor * self.n_grid_points_y))
+            v_patch_indices_x = np.array(range(startRow_and_Col[1], startRow_and_Col[1] +
+                                               self.inter_grid_points_dist_factor * self.n_grid_points_x))
+            v_coarse_patch_indices_y = v_patch_indices_y[0::self.inter_grid_points_dist_factor]
+            v_coarse_patch_indices_x = v_patch_indices_x[0::self.inter_grid_points_dist_factor]
+            return large_image[v_coarse_patch_indices_y.reshape(-1, 1), v_coarse_patch_indices_x.reshape(1, -1)]
+        else:
+            return large_image[startRow_and_Col[0]:startRow_and_Col[0] +
+                                                   self.n_grid_points_y,
+                   startRow_and_Col[1]:startRow_and_Col[1] +
+                                       self.n_grid_points_x]
 
 
 def obtain_meta_map(m_map):

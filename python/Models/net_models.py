@@ -17,7 +17,7 @@ class Autoencoder:
                  bases,
                  n_filters=32,
                  activ_function_name=None,
-                 est_separately_accr_freq=False,
+                 est_separately_accr_freq=False,  # this option is used in architecture 8  for the moment
                  kernel_size=(3, 3),
                  conv_stride=1,
                  pool_size_str=2,
@@ -1242,7 +1242,7 @@ class Autoencoder:
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
 
-        x = keras.layers.MaxPooling2D(pool_size=self.pool_size_str,
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
                                           strides=self.pool_size_str,
                                           padding='same')(x)
 
@@ -1256,7 +1256,7 @@ class Autoencoder:
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
 
-        x = keras.layers.MaxPooling2D(pool_size=self.pool_size_str,
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
                                           strides=self.pool_size_str,
                                           padding='same')(x)
 
@@ -1270,7 +1270,7 @@ class Autoencoder:
             if self.use_batch_norm:
                 x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
 
-        x = keras.layers.MaxPooling2D(pool_size=self.pool_size_str,
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
                                           strides=self.pool_size_str,
                                           padding='same')(x)
 
@@ -1365,6 +1365,383 @@ class Autoencoder:
                 tf.cast(10, tf.float64)))
             outputs = tf.reshape(outputs, [-1] + [
                 outputs.shape[1] * outputs.shape[2] * outputs.shape[3], 1])
+
+        # Instantiate Decoder Model
+        decoder = Model(latent_inputs, outputs, name='decoder')
+        decoder.summary()
+
+        # Instantiate Autoencoder Model
+        autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
+        autoencoder.summary()
+
+        # Plot the Autoencoder Model
+        # plot_the_model(encoder, decoder, autoencoder)
+        return autoencoder
+
+    # 28 layer network: 14 for encoder and 14 for decoder (fully convolutional)
+    def convolutional_autoencoder_8b(self):
+        # Build the Autoencoder Model
+
+        if self.add_mask_channel:
+            if self.mask_as_tensor:
+                n_channels = self.bases.shape[1] + 2
+            else:
+                n_channels = self.bases.shape[1] + 1
+        else:
+            n_channels = self.bases.shape[1]
+
+        # First build the Encoder Model
+        inputs = keras.layers.Input(shape=(self.height, self.width, n_channels), name='encoder_input')
+        x = inputs
+
+        # Stacking  Conv2D, Activations, and AveragePooling layers blocks
+        n_layers_and_n_filters = [1, self.n_filters, self.n_filters]
+        n_layers_and_n_filters2 = [self.n_filters] * 4
+        n_layers_and_n_filters3 = [self.n_filters] * 3
+
+        for filters in n_layers_and_n_filters:
+            if filters == 1:
+                filters = self.n_filters
+            if self.height == 64:  # Assume square inputs
+                kernel_to_use = (5, 5)
+            else:
+                kernel_to_use = self.kernel_size
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=kernel_to_use,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        for filters in n_layers_and_n_filters2:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=self.kernel_size,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        for filters in n_layers_and_n_filters3:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=self.kernel_size,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        x = keras.layers.Conv2D(filters=self.n_filters,
+                                kernel_size=self.kernel_size,
+                                strides=self.conv_stride,
+                                kernel_initializer='he_normal',
+                                activation=keras.layers.LeakyReLU(alpha=0.3),
+                                padding='same')(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        shape_here = keras.backend.int_shape(x)
+
+        x = keras.layers.Conv2D(filters=int(self.c_len / (shape_here[1] * shape_here[2])),
+                                kernel_size=self.kernel_size,
+                                strides=self.conv_stride,
+                                kernel_initializer='he_normal',
+                                activation=keras.layers.LeakyReLU(alpha=0.3),
+                                padding='same')(x)
+        if self.use_batch_norm:
+            x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        # Shape information to use in the decoder
+        latent = x
+        shape = keras.backend.int_shape(latent)
+
+        # Instantiate Encoder Model
+        encoder = Model(inputs, latent, name='encoder')
+        encoder.summary()
+
+        # Build the Decoder Model
+        latent_inputs = keras.layers.Input(shape=(shape[1], shape[2], shape[3]), name='decoder_input')
+        x = latent_inputs
+
+        # Stacking Transposed Conv2D, Activations, and Upsampling  blocks
+        x = keras.layers.Conv2DTranspose(filters=int(self.c_len / (shape_here[1] * shape_here[2])),
+                                         kernel_size=self.kernel_size,
+                                         strides=self.conv_stride,
+                                         kernel_initializer='he_normal',
+                                         activation=keras.layers.LeakyReLU(alpha=0.3),
+                                         padding='same')(x)
+        if self.use_batch_norm:
+            x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        x = keras.layers.Conv2DTranspose(filters=self.n_filters,
+                                         kernel_size=self.kernel_size,
+                                         strides=self.conv_stride,
+                                         kernel_initializer='he_normal',
+                                         activation=keras.layers.LeakyReLU(alpha=0.3),
+                                         padding='same')(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters3[::-1]:
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=self.kernel_size,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters2[::-1]:
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=self.kernel_size,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters[::-1]:
+            if filters == 1:
+                filters = self.bases.shape[0]
+            if self.height == 64:  # Assume square inputs
+                kernel_to_use = (5, 5)
+            else:
+                kernel_to_use = self.kernel_size
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=kernel_to_use,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+        x = tf.cast(x, tf.float64)
+        outputs = 10 * (tf.keras.backend.log(
+            tf.matmul(db_to_natural(x), tf.cast(self.bases, tf.float64))) / tf.keras.backend.log(
+            tf.cast(10, tf.float64)))
+        outputs = tf.reshape(outputs, [-1] + [
+            outputs.shape[1] * outputs.shape[2] * outputs.shape[3], 1])
+
+        # Instantiate Decoder Model
+        decoder = Model(latent_inputs, outputs, name='decoder')
+        decoder.summary()
+
+        # Instantiate Autoencoder Model
+        autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
+        autoencoder.summary()
+
+        # Plot the Autoencoder Model
+        # plot_the_model(encoder, decoder, autoencoder)
+        return autoencoder
+
+    # 38 layer network: 19 for encoder and 19 for decoder (fully convolutional)
+    def convolutional_autoencoder_8c(self):
+        # Build the Autoencoder Model
+
+        if self.add_mask_channel:
+            if self.mask_as_tensor:
+                n_channels = self.bases.shape[1] + 2
+            else:
+                n_channels = self.bases.shape[1] + 1
+        else:
+            n_channels = self.bases.shape[1]
+
+        # First build the Encoder Model
+        inputs = keras.layers.Input(shape=(self.height, self.width, n_channels), name='encoder_input')
+        x = inputs
+
+        # Stacking  Conv2D, Activations, and AveragePooling layers blocks
+        n_layers_and_n_filters = [1, self.n_filters, self.n_filters]
+        n_layers_and_n_filters2 = [self.n_filters] * 3
+
+        for filters in n_layers_and_n_filters:
+            if filters == 1:
+                filters = self.n_filters
+            if self.height == 64:  # Assume square inputs
+                kernel_to_use = (5, 5)
+            else:
+                kernel_to_use = self.kernel_size
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=kernel_to_use,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        for filters in n_layers_and_n_filters2:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=self.kernel_size,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        for filters in n_layers_and_n_filters2:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=self.kernel_size,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        for filters in n_layers_and_n_filters2:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=self.kernel_size,
+                                    strides=self.conv_stride,
+                                    kernel_initializer='he_normal',
+                                    activation=keras.layers.LeakyReLU(alpha=0.3),
+                                    padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.AveragePooling2D(pool_size=self.pool_size_str,
+                                          strides=self.pool_size_str,
+                                          padding='same')(x)
+
+        shape_here = keras.backend.int_shape(x)
+
+        x = keras.layers.Conv2D(filters=int(self.c_len / (shape_here[1] * shape_here[2])),
+                                kernel_size=self.kernel_size,
+                                strides=self.conv_stride,
+                                kernel_initializer='he_normal',
+                                activation=keras.layers.LeakyReLU(alpha=0.3),
+                                padding='same')(x)
+        if self.use_batch_norm:
+            x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        # Shape information to use in the decoder
+        latent = x
+        shape = keras.backend.int_shape(latent)
+
+        # Instantiate Encoder Model
+        encoder = Model(inputs, latent, name='encoder')
+        encoder.summary()
+
+        # Build the Decoder Model
+        latent_inputs = keras.layers.Input(shape=(shape[1], shape[2], shape[3]), name='decoder_input')
+        x = latent_inputs
+
+        # Stacking Transposed Conv2D, Activations, and Upsampling  blocks
+        x = keras.layers.Conv2DTranspose(filters=4,
+                                         kernel_size=self.kernel_size,
+                                         strides=self.conv_stride,
+                                         kernel_initializer='he_normal',
+                                         activation=keras.layers.LeakyReLU(alpha=0.3),
+                                         padding='same')(x)
+        if self.use_batch_norm:
+            x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters2[::-1]:
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=self.kernel_size,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters2[::-1]:
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=self.kernel_size,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters2[::-1]:
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=self.kernel_size,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+
+        x = keras.layers.UpSampling2D(size=self.pool_size_str,
+                                      interpolation='bilinear')(x)
+
+        for filters in n_layers_and_n_filters[::-1]:
+            if filters == 1:
+                filters = self.bases.shape[0]
+            if self.height == 64:  # Assume square inputs
+                kernel_to_use = (5, 5)
+            else:
+                kernel_to_use = self.kernel_size
+            x = keras.layers.Conv2DTranspose(filters=filters,
+                                             kernel_size=kernel_to_use,
+                                             strides=self.conv_stride,
+                                             kernel_initializer='he_normal',
+                                             activation=keras.layers.LeakyReLU(alpha=0.3),
+                                             padding='same')(x)
+            if self.use_batch_norm:
+                x = keras.layers.BatchNormalization(axis=3, scale=False)(x)
+        x = tf.cast(x, tf.float64)
+        outputs = 10 * (tf.keras.backend.log(
+            tf.matmul(db_to_natural(x), tf.cast(self.bases, tf.float64))) / tf.keras.backend.log(
+            tf.cast(10, tf.float64)))
+        outputs = tf.reshape(outputs, [-1] + [
+            outputs.shape[1] * outputs.shape[2] * outputs.shape[3], 1])
 
         # Instantiate Decoder Model
         decoder = Model(latent_inputs, outputs, name='decoder')
