@@ -119,5 +119,5 @@ class GroupLassoMKEstimator(MapEstimator):
         else:
             # use the universal kernel: RBF
             exponent = 2
-        output = np.exp(- npla.norm(np.subtract(x1, x2), axis=0) ** exponent / (sigma ** exponent))
+        output = np.exp(- npla.norm(np.subtract(x1, x2), axis=0) ** exponent / (sigma ** 2))
         return output

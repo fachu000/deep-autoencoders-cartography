@@ -2,6 +2,7 @@ import numpy as np
 from numpy import linalg as npla
 from joblib import Parallel, delayed
 import multiprocessing
+import time
 
 
 class Simulator:
@@ -39,7 +40,11 @@ class Simulator:
             t_map, m_meta_map, _ = generator.generate()
             m_meta_map_all_freqs = np.repeat(m_meta_map[:, :, np.newaxis], t_map.shape[2], axis=2)
             t_sampled_map_allfreq, mask = sampler.sample_map(t_map, m_meta_map)
+            # start_time = time.time()
             t_estimated_map = estimator.estimate_map(t_sampled_map_allfreq, mask, m_meta_map)
+            # end_time = time.time()
+            # elapsed_time = end_time - start_time
+            # print('The run-time of the estimator XX  is %.5f' % elapsed_time),
             v_meta = m_meta_map_all_freqs.flatten()
             v_map = t_map.flatten()
             v_est_map = t_estimated_map.flatten()
