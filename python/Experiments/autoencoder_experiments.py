@@ -36,6 +36,114 @@ from gsim.gfigure import GFigure
 
 class ExperimentSet(gsim.AbstractExperimentSet):
 
+    # Generates Fig. 2: RMSE comparison with remcom maps: combining masks vs using masks as a tensor
+    def experiment_1002(self):
+        # Execution parameters
+        exp_num = int(
+            re.search(r'\d+',
+                      sys._getframe().f_code.co_name).group())
+        # np.random.seed(4000)
+
+        # Generator
+        testing_generator = InsiteMapGenerator(
+            l_file_num=np.arange(41, 43),  # the list is the interval [start, stop)
+        )
+
+        # Sampler
+        sampling_factor = np.linspace(0.05, 0.2, 10)
+
+        testing_sampler = MapSampler()
+
+        # Estimators
+        architecture_id = '8'
+        filters = 27
+        code_length = 64
+
+
+        num_maps = 100000
+        ve_split_frac = [0.5, 0.5]
+        n_epochs = 100
+        training_sampler = MapSampler(v_sampling_factor=[0.05, 0.2])
+        training_generator = InsiteMapGenerator(
+            l_file_num=np.arange(1, 41))
+
+        labels = ["Masks as tensor", "Masks combined"]
+        all_estimators = []
+        for ind_est in range(len(labels)):
+            b_mask_as_tensor = False
+            if labels[ind_est] == "Masks as tensor":
+                b_mask_as_tensor = True
+
+            estimator = AutoEncoderEstimator(
+                n_pts_x=testing_generator.n_grid_points_x,
+                n_pts_y=testing_generator.n_grid_points_y,
+                arch_id=architecture_id,
+                c_length=code_length,
+                bases_vals=testing_generator.m_basis_functions,
+                n_filters=filters,
+                use_masks_as_tensor=b_mask_as_tensor)
+
+            # Train  estimator
+            history, codes = estimator.train(generator=training_generator,
+                                               sampler=training_sampler,
+                                               learning_rate=5e-4,
+                                               # n_super_batches=10,
+                                               n_maps=num_maps,
+                                               perc_train=0.9,
+                                               v_split_frac=ve_split_frac,
+                                               n_resamples_per_map=10,
+                                               n_epochs=n_epochs)
+
+            # Plot training results: losses and visualize codes if enabled
+            ExperimentSet.plot_histograms_of_codes_and_visualize(
+                testing_generator.x_length,
+                testing_generator.y_length,
+                codes,
+                estimator.chosen_model,
+                exp_num,
+            )
+            # ExperimentSet.plot_train_and_val_losses(history, exp_num)
+            estimator.str_name = labels[ind_est]
+            all_estimators += [estimator]
+
+        # Simulation pararameters
+        n_runs = 1000
+
+        simulator = Simulator(n_runs=n_runs, use_parallel_proc=False)
+
+        # run the simulation
+        estimators_to_sim = [1, 2]
+        assert len(estimators_to_sim) <= len(all_estimators), 'The number of estimators to simulate must be ' \
+                                                              'less or equal to the total number of estimators'
+        RMSE = np.zeros((len(estimators_to_sim), len(sampling_factor)))
+        labels = []
+        for ind_est in range(len(estimators_to_sim)):
+            current_estimator = all_estimators[estimators_to_sim[ind_est] -
+                                               1]
+            for ind_sampling in range(np.size(sampling_factor)):
+                testing_sampler.v_sampling_factor = sampling_factor[ind_sampling]
+                RMSE[ind_est, ind_sampling] = simulator.simulate(
+                    generator=testing_generator,
+                    sampler=testing_sampler,
+                    estimator=current_estimator)
+            labels += [current_estimator.str_name]
+
+        # Plot results
+        print(RMSE)
+        G = GFigure(
+            xaxis=np.rint(970 * sampling_factor),
+            yaxis=RMSE[0, :],
+            xlabel="Number of measurements, " + r"$\vert \Omega \vert $",
+            ylabel="RMSE(dB)",
+            legend=labels[0])
+        if len(estimators_to_sim) >= 1:
+            for ind_plot in range(len(estimators_to_sim) - 1):
+                G.add_curve(xaxis=np.rint(
+                    970 * sampling_factor),
+                    yaxis=RMSE[ind_plot + 1, :], legend=labels[ind_plot + 1])
+        ExperimentSet.plot_and_save_RMSE_vs_sf_modified(sampling_factor, RMSE, exp_num, labels)
+        return G
+
     # Generates Fig. 4 : map reconstruction using the autoencoder estimator with code length 4
     def experiment_1004(self):
         # Execution parameters
