@@ -26,7 +26,7 @@ The first time one wants to run a simulation after downloading the required Pyth
 
 The experiments reproducing different figures in the paper are organized in methods located in the file `Experiments/autoencoder_experiments.py`. The comments before each method indicate which figure(s) on the paper it generates.
 
-For experiments that use the Wireless Insite software, please extract the dataset files from **remcom_maps.rar** in the **Generators** folder to form the **remcom_maps** folder. 
+For experiments that use the Wireless Insite software, please unzip the dataset files from **remcom_maps.zip** in the **Generators** folder to form the **remcom_maps** folder. 
 
 One is now all set. For example, to run experiment 1003, one types `run_experiment.py 1003`. To just display the results of the last execution of experiment 1003 (stored in **output/autoencoder_experiments**), one types `run_experiment.py -p 1003`. Note that this way of only plotting executed experiments applies for displaying 1D curves, it does not work for 2D images. The simulation results for experiments that produce 2D images (possibly together with 1D curves) are saved in **output/autoencoder_experiments/savedResults**. 
 
