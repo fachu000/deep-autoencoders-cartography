@@ -12,8 +12,8 @@ class InsiteMapGenerator(MapGenerator):
             self,
             num_tx_per_channel=2,
             l_file_num=np.arange(1, 40),
-            large_map_size=244,
-            # closest square to the map size provided by Wireless Insight soft is 59536 = 244^2
+            large_map_size=(244, 246),
+            # The Wireless Insight software provides a map of size 244 x 246
             filter_map=True,
             filter_size=3,
             inter_grid_points_dist_factor=1,  # set to an integer greater than 1
@@ -43,9 +43,9 @@ class InsiteMapGenerator(MapGenerator):
                             delim_whitespace=True,
                             skipinitialspace=True))
             rx_power_tx1_dBW = dbm_to_db(np.reshape(rx_power_tx1,
-                                                    (self.n_grid_points_x, self.n_grid_points_y), order='C'))
+                                                    (self.n_grid_points_y, self.n_grid_points_x), order='C'))
             rx_power_tx2_dBW = dbm_to_db(np.reshape(rx_power_tx2,
-                                                    (self.n_grid_points_x, self.n_grid_points_y), order='C'))
+                                                    (self.n_grid_points_y, self.n_grid_points_x), order='C'))
             rx_pow_tot_dBw = db_to_natural(rx_power_tx1_dBW) + db_to_natural(rx_power_tx2_dBW)
 
             l_maps.append(rx_pow_tot_dBw)
@@ -53,13 +53,13 @@ class InsiteMapGenerator(MapGenerator):
         else:
 
             # Generate coordinates of random patch
-            patch_indices = np.random.choice(self.large_map_size -
+            patch_indices = np.random.choice(self.large_map_size[0] -
                                              self.n_grid_points_x * self.inter_grid_points_dist_factor,
                                              size=2)
 
             for basis_ind in range(num_bases):
                 map_this_frequency = np.zeros(
-                    (self.n_grid_points_x, self.n_grid_points_y))
+                    (self.n_grid_points_y, self.n_grid_points_x))
                 assert len(self.l_file_num) >= self.num_tx_per_channel, 'The number of map extraction files should be ' \
                                                                         'greater or equal to the number of transmitters per channel'
                 files_ind = np.random.choice(self.l_file_num,
@@ -75,8 +75,8 @@ class InsiteMapGenerator(MapGenerator):
                             delim_whitespace=True,
                             skiprows=[0],
                             usecols=['Power(dBm)']))
-                    large_map_tx_resh = dbm_to_natural(np.reshape(large_map_tx[0:(self.large_map_size ** 2)],
-                                                                  (self.large_map_size, self.large_map_size),
+                    large_map_tx_resh = dbm_to_natural(np.reshape(large_map_tx,
+                                                                  newshape=self.large_map_size,
                                                                   order='C'))
                     # Extract patch from the file
                     maps_as_patch = self.get_patch(large_map_tx_resh,
@@ -94,7 +94,7 @@ class InsiteMapGenerator(MapGenerator):
                 else:
                     map_this_frequency_filter = map_this_frequency
 
-                l_maps.append(map_this_frequency_filter)  # list of Nx x Ny matrices
+                l_maps.append(map_this_frequency_filter)  # list of Ny x Nx matrices
 
         return l_maps, obtain_meta_map(l_maps[0])
 
@@ -117,7 +117,7 @@ class InsiteMapGenerator(MapGenerator):
 def obtain_meta_map(m_map):
     """
     Returns:
-        `m_meta_map_ret`: Nx x Ny matrix where each entry is 1 if that grid point is inside the building,
+        `m_meta_map_ret`: Ny x Nx matrix where each entry is 1 if that grid point is inside the building,
          0 otherwise.
     """
     m_meta_map = np.zeros((m_map.shape[0], m_map.shape[1]))
