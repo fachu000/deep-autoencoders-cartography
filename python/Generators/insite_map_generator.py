@@ -43,9 +43,9 @@ class InsiteMapGenerator(MapGenerator):
                             delim_whitespace=True,
                             skipinitialspace=True))
             rx_power_tx1_dBW = dbm_to_db(np.reshape(rx_power_tx1,
-                                                    (self.n_grid_points_y, self.n_grid_points_x), order='C'))
+                                                    (self.n_grid_points_x, self.n_grid_points_y), order='C'))
             rx_power_tx2_dBW = dbm_to_db(np.reshape(rx_power_tx2,
-                                                    (self.n_grid_points_y, self.n_grid_points_x), order='C'))
+                                                    (self.n_grid_points_x, self.n_grid_points_y), order='C'))
             rx_pow_tot_dBw = db_to_natural(rx_power_tx1_dBW) + db_to_natural(rx_power_tx2_dBW)
 
             l_maps.append(rx_pow_tot_dBw)
@@ -59,7 +59,7 @@ class InsiteMapGenerator(MapGenerator):
 
             for basis_ind in range(num_bases):
                 map_this_frequency = np.zeros(
-                    (self.n_grid_points_y, self.n_grid_points_x))
+                    (self.n_grid_points_x, self.n_grid_points_y))
                 assert len(self.l_file_num) >= self.num_tx_per_channel, 'The number of map extraction files should be ' \
                                                                         'greater or equal to the number of transmitters per channel'
                 files_ind = np.random.choice(self.l_file_num,
@@ -94,7 +94,7 @@ class InsiteMapGenerator(MapGenerator):
                 else:
                     map_this_frequency_filter = map_this_frequency
 
-                l_maps.append(map_this_frequency_filter)  # list of Ny x Nx matrices
+                l_maps.append(map_this_frequency_filter)  # list of Nx x Ny matrices
 
         return l_maps, obtain_meta_map(l_maps[0])
 
@@ -117,7 +117,7 @@ class InsiteMapGenerator(MapGenerator):
 def obtain_meta_map(m_map):
     """
     Returns:
-        `m_meta_map_ret`: Ny x Nx matrix where each entry is 1 if that grid point is inside the building,
+        `m_meta_map_ret`: Nx x Ny matrix where each entry is 1 if that grid point is inside the building,
          0 otherwise.
     """
     m_meta_map = np.zeros((m_map.shape[0], m_map.shape[1]))
