@@ -12,8 +12,8 @@ class InsiteMapGenerator(MapGenerator):
             self,
             num_tx_per_channel=2,
             l_file_num=np.arange(1, 40),
-            large_map_size=244,
-            # closest square to the map size provided by Wireless Insight soft is 59536 = 244^2
+            large_map_size=(244, 246),
+            # The Wireless Insight software provides a map of size 244 x 246
             filter_map=True,
             filter_size=3,
             inter_grid_points_dist_factor=1,  # set to an integer greater than 1
@@ -53,7 +53,7 @@ class InsiteMapGenerator(MapGenerator):
         else:
 
             # Generate coordinates of random patch
-            patch_indices = np.random.choice(self.large_map_size -
+            patch_indices = np.random.choice(self.large_map_size[0] -
                                              self.n_grid_points_x * self.inter_grid_points_dist_factor,
                                              size=2)
 
@@ -75,8 +75,8 @@ class InsiteMapGenerator(MapGenerator):
                             delim_whitespace=True,
                             skiprows=[0],
                             usecols=['Power(dBm)']))
-                    large_map_tx_resh = dbm_to_natural(np.reshape(large_map_tx[0:(self.large_map_size ** 2)],
-                                                                  (self.large_map_size, self.large_map_size),
+                    large_map_tx_resh = dbm_to_natural(np.reshape(large_map_tx,
+                                                                  newshape=self.large_map_size,
                                                                   order='C'))
                     # Extract patch from the file
                     maps_as_patch = self.get_patch(large_map_tx_resh,
